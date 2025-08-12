@@ -1,0 +1,1 @@
+# odoo-xmlrpc-inventory-apis
