@@ -1,0 +1,218 @@
+{
+  "info": {
+    "name": "Odoo Inventory API",
+    "description": "Collection for testing the Odoo Inventory Lambda API locally",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "client_id",
+      "value": "your_client_id",
+      "type": "string"
+    },
+    {
+      "key": "client_secret",
+      "value": "your_client_secret",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the local server is running and environment is configured"
+      },
+      "response": []
+    },
+    {
+      "name": "API Documentation",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": ["{{base_url}}"],
+          "path": [""]
+        },
+        "description": "Get API documentation and available endpoints"
+      },
+      "response": []
+    },
+    {
+      "name": "List All Inventory",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/inventory",
+          "host": ["{{base_url}}"],
+          "path": ["inventory"]
+        },
+        "description": "Get all inventory items with default pagination"
+      },
+      "response": []
+    },
+    {
+      "name": "List Inventory with Pagination",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/inventory?limit=10&offset=0",
+          "host": ["{{base_url}}"],
+          "path": ["inventory"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Number of items to return"
+            },
+            {
+              "key": "offset",
+              "value": "0",
+              "description": "Number of items to skip"
+            }
+          ]
+        },
+        "description": "Get inventory items with custom pagination"
+      },
+      "response": []
+    },
+    {
+      "name": "Search Inventory",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/inventory?search=laptop&limit=5",
+          "host": ["{{base_url}}"],
+          "path": ["inventory"],
+          "query": [
+            {
+              "key": "search",
+              "value": "laptop",
+              "description": "Search term for product name or SKU"
+            },
+            {
+              "key": "limit",
+              "value": "5",
+              "description": "Limit results"
+            }
+          ]
+        },
+        "description": "Search for products by name or SKU"
+      },
+      "response": []
+    },
+    {
+      "name": "Filter by Category",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/inventory?category_id=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["inventory"],
+          "query": [
+            {
+              "key": "category_id",
+              "value": "1",
+              "description": "Product category ID to filter by"
+            },
+            {
+              "key": "limit",
+              "value": "20",
+              "description": "Limit results"
+            }
+          ]
+        },
+        "description": "Filter products by category ID"
+      },
+      "response": []
+    },
+    {
+      "name": "List Inventory with Authentication",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "x-client-id",
+            "value": "{{client_id}}",
+            "type": "text",
+            "description": "Client ID for authentication"
+          },
+          {
+            "key": "x-client-secret",
+            "value": "{{client_secret}}",
+            "type": "text",
+            "description": "Client secret for authentication"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/inventory?limit=5",
+          "host": ["{{base_url}}"],
+          "path": ["inventory"],
+          "query": [
+            {
+              "key": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "Test inventory listing with client authentication headers"
+      },
+      "response": []
+    },
+    {
+      "name": "CORS Preflight",
+      "request": {
+        "method": "OPTIONS",
+        "header": [
+          {
+            "key": "Access-Control-Request-Method",
+            "value": "GET",
+            "type": "text"
+          },
+          {
+            "key": "Access-Control-Request-Headers",
+            "value": "x-client-id,x-client-secret",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/inventory",
+          "host": ["{{base_url}}"],
+          "path": ["inventory"]
+        },
+        "description": "Test CORS preflight request"
+      },
+      "response": []
+    },
+    {
+      "name": "Test Method Not Allowed",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/inventory",
+          "host": ["{{base_url}}"],
+          "path": ["inventory"]
+        },
+        "description": "Test unsupported HTTP method (should return 405)"
+      },
+      "response": []
+    }
+  ]
+}
