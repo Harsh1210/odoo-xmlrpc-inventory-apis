@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 """
 Comprehensive test script for all Odoo Inventory Lambda APIs
+Uses environment variables for secure testing
 """
 
 import requests
 import json
 import time
+import os
+from dotenv import load_dotenv
 
-# API Configuration
-BASE_URL = "https://your-lambda-function-url.amazonaws.com"
+# Load environment variables
+load_dotenv()
+
+# API Configuration from environment variables
+BASE_URL = os.environ.get('LAMBDA_FUNCTION_URL', 'https://your-lambda-function-url.amazonaws.com')
 HEADERS = {
-    "x-client-id": "your_client_id",
-    "x-client-secret": "your_client_secret",
+    "x-client-id": os.environ.get('CLIENT_ID', 'your_client_id'),
+    "x-client-secret": os.environ.get('CLIENT_SECRET', 'your_client_secret'),
     "Content-Type": "application/json"
 }
 

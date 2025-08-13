@@ -71,7 +71,22 @@ def lambda_handler(event, context):
         
         elif path_parts[0] == 'products':
             if http_method == 'POST':
-                return handle_create_product(event, context)
+                # Check if this is a create or update request based on the body
+                try:
+                    if event.get('body'):
+                        data = json.loads(event['body'])
+                        if 'product_name' in data and 'price' in data:
+                            # This is an update request
+                            return handle_update_product(event, context)
+                        elif 'name' in data and 'cost' in data:
+                            # This is a create request
+                            return handle_create_product(event, context)
+                        else:
+                            return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid request body. For create: use "name" and "cost". For update: use "product_name" and "price"'})}
+                    else:
+                        return {'statusCode': 400, 'body': json.dumps({'error': 'Request body is required'})}
+                except json.JSONDecodeError:
+                    return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid JSON in request body'})}
             elif http_method == 'PUT':
                 return handle_update_product(event, context)
             else:
@@ -631,11 +646,12 @@ def handle_create_product(event, context):
         )
         
         # Get the created product details for response
-        created_product = models.execute_kw(
+        created_product_list = models.execute_kw(
             ODOO_DB, uid, ODOO_PASSWORD,
             'product.product', 'read',
-            [product_id, ['id', 'name', 'standard_price', 'list_price', 'product_tag_ids']]
+            [[product_id], ['id', 'name', 'standard_price', 'list_price', 'product_tag_ids']]
         )
+        created_product = created_product_list[0]
         
         # Get tag details if any
         product_tags = []
@@ -782,11 +798,12 @@ def handle_update_product(event, context):
         product_id = product_ids[0]
         
         # Get current product details
-        current_product = models.execute_kw(
+        current_product_list = models.execute_kw(
             ODOO_DB, uid, ODOO_PASSWORD,
             'product.product', 'read',
-            [product_id, ['id', 'name', 'list_price', 'standard_price']]
+            [[product_id], ['id', 'name', 'list_price', 'standard_price']]
         )
+        current_product = current_product_list[0]
         
         # Prepare update data
         update_data = {
@@ -805,11 +822,12 @@ def handle_update_product(event, context):
         )
         
         # Get updated product details
-        updated_product = models.execute_kw(
+        updated_product_list = models.execute_kw(
             ODOO_DB, uid, ODOO_PASSWORD,
             'product.product', 'read',
-            [product_id, ['id', 'name', 'list_price', 'standard_price', 'product_tag_ids']]
+            [[product_id], ['id', 'name', 'list_price', 'standard_price', 'product_tag_ids']]
         )
+        updated_product = updated_product_list[0]
         
         # Get tag details if any
         product_tags = []
