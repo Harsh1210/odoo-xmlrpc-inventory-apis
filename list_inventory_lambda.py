@@ -59,7 +59,22 @@ def lambda_handler(event, context):
             if http_method == 'GET':
                 return handle_list_tags(event, context)
             elif http_method == 'POST':
-                return handle_create_tag(event, context)
+                # Check if this is a search or create request based on the body
+                try:
+                    if event.get('body'):
+                        data = json.loads(event['body'])
+                        if 'tag_name' in data or 'search' in data:
+                            # This is a search request
+                            return handle_list_tags(event, context)
+                        elif 'name' in data:
+                            # This is a create request
+                            return handle_create_tag(event, context)
+                        else:
+                            return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid request body. For search: use "tag_name" or "search". For create: use "name"'})}
+                    else:
+                        return {'statusCode': 400, 'body': json.dumps({'error': 'Request body is required for POST requests'})}
+                except json.JSONDecodeError:
+                    return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid JSON in request body'})}
             else:
                 return {'statusCode': 405, 'body': json.dumps({'error': 'Method Not Allowed for tags'})}
         
@@ -78,11 +93,11 @@ def lambda_handler(event, context):
                         if 'product_name' in data and 'price' in data:
                             # This is an update request
                             return handle_update_product(event, context)
-                        elif 'name' in data and 'cost' in data:
+                        elif 'name' in data and ('cost' in data or 'price' in data):
                             # This is a create request
                             return handle_create_product(event, context)
                         else:
-                            return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid request body. For create: use "name" and "cost". For update: use "product_name" and "price"'})}
+                            return {'statusCode': 400, 'body': json.dumps({'error': 'Invalid request body. For create: use "name" and "price" (or legacy "cost"). For update: use "product_name" and "price"'})}
                     else:
                         return {'statusCode': 400, 'body': json.dumps({'error': 'Request body is required'})}
                 except json.JSONDecodeError:
@@ -351,18 +366,43 @@ def handle_list_inventory(event, context):
         }
 
 def handle_list_tags(event, context):
-    """Handle GET /tags - List all product tags with optional search."""
+    """Handle GET /tags and POST /tags - List all product tags with optional search."""
     
     # Authenticate
     uid, models, auth_error = authenticate_request(event)
     if auth_error:
         return auth_error
     
-    # Parse query parameters
-    query_params = event.get('queryStringParameters') or {}
-    limit = int(query_params.get('limit', 100))
-    offset = int(query_params.get('offset', 0))
-    search_term = query_params.get('search', '')
+    # Determine if this is GET (query params) or POST (JSON body)
+    http_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+    
+    if http_method == 'POST':
+        # Parse JSON body for POST requests
+        try:
+            if not event.get('body'):
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'Request body is required for POST search'})
+                }
+            
+            search_data = json.loads(event['body'])
+            
+            # Extract search parameters from JSON
+            search_term = search_data.get('tag_name', search_data.get('search', ''))
+            limit = int(search_data.get('limit', 100))
+            offset = int(search_data.get('offset', 0))
+            
+        except json.JSONDecodeError:
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'Invalid JSON in request body'})
+            }
+    else:
+        # Parse query parameters for GET requests (backward compatibility)
+        query_params = event.get('queryStringParameters') or {}
+        limit = int(query_params.get('limit', 100))
+        offset = int(query_params.get('offset', 0))
+        search_term = query_params.get('search', '')
     
     try:
         # Build search domain for tags
@@ -435,7 +475,8 @@ def handle_list_tags(event, context):
                     'has_more': (offset + limit) < total_count
                 },
                 'filters_applied': {
-                    'search_term': search_term
+                    'search_term': search_term,
+                    'search_method': http_method
                 }
             })
         }
@@ -558,14 +599,18 @@ def handle_create_product(event, context):
         
         data = json.loads(event['body'])
         
-        # Validate required fields
-        required_fields = ['name', 'cost']
-        for field in required_fields:
-            if field not in data:
-                return {
-                    'statusCode': 400,
-                    'body': json.dumps({'error': f'{field} is required'})
-                }
+        # Validate required fields - support both 'cost' (legacy) and 'price' (preferred)
+        if 'name' not in data:
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'name is required'})
+            }
+        
+        if 'cost' not in data and 'price' not in data:
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'price is required (or use legacy "cost" field)'})
+            }
         
         product_name = data['name'].strip()
         if not product_name:
@@ -574,18 +619,35 @@ def handle_create_product(event, context):
                 'body': json.dumps({'error': 'Product name cannot be empty'})
             }
         
+        # Get sales price (prefer 'price' over legacy 'cost')
         try:
-            cost_price = float(data['cost'])
-            if cost_price < 0:
+            sales_price = float(data.get('price', data.get('cost', 0)))
+            if sales_price < 0:
                 return {
                     'statusCode': 400,
-                    'body': json.dumps({'error': 'Cost must be a positive number'})
+                    'body': json.dumps({'error': 'Price must be a positive number'})
                 }
         except (ValueError, TypeError):
             return {
                 'statusCode': 400,
-                'body': json.dumps({'error': 'Cost must be a valid number'})
+                'body': json.dumps({'error': 'Price must be a valid number'})
             }
+        
+        # Get optional cost price
+        cost_price = None
+        if 'cost_price' in data:
+            try:
+                cost_price = float(data['cost_price'])
+                if cost_price < 0:
+                    return {
+                        'statusCode': 400,
+                        'body': json.dumps({'error': 'Cost price must be a positive number'})
+                    }
+            except (ValueError, TypeError):
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': 'Cost price must be a valid number'})
+                }
         
         # Optional tag IDs
         tag_ids = data.get('tag_ids', [])
@@ -631,13 +693,16 @@ def handle_create_product(event, context):
         # Create the product
         product_data = {
             'name': product_name,
-            'standard_price': cost_price,  # Cost price
-            'list_price': cost_price,      # Sale price (defaulting to cost price)
+            'list_price': sales_price,     # Sales price (from 'price' or 'cost' field)
             'type': 'product',             # Stockable product
             'sale_ok': True,               # Can be sold (as requested)
             'purchase_ok': False,          # Cannot be purchased (as requested)
             'product_tag_ids': [(6, 0, tag_ids)] if tag_ids else []  # Link tags
         }
+        
+        # Only set cost price if explicitly provided
+        if cost_price is not None:
+            product_data['standard_price'] = cost_price
         
         product_id = models.execute_kw(
             ODOO_DB, uid, ODOO_PASSWORD,
