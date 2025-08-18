@@ -743,7 +743,7 @@ def handle_create_product(event, context):
                     'id': product_id,
                     'name': created_product['name'],
                     'cost_price': created_product['standard_price'],
-                    'sale_price': created_product['list_price'],
+                    'price': created_product['list_price'],
                     'tags': product_tags,
                     'can_be_sold': True,
                     'can_be_purchased': False
@@ -919,7 +919,7 @@ def handle_update_product(event, context):
                     'id': updated_product['id'],
                     'name': updated_product['name'],
                     'previous_price': current_product['list_price'],
-                    'new_price': updated_product['list_price'],
+                    'price': updated_product['list_price'],
                     'cost_price': updated_product['standard_price'],
                     'cost_price_updated': update_cost_price,
                     'tags': product_tags
